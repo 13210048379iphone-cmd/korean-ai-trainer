@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+}
+
+enum VocabStatus {
+  known
+  unknown
+}
+
+enum StudyType {
+  reading
+  vocab
+  exam
+}
+
+enum ErrorType {
+  missing_word
+  wrong_word
+  vocab
+  pronunciation
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  student      Student?
+}
+
+model Student {
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  name               String
+  level              String             @default("A1")
+  streakDays         Int                @default(0) @map("streak_days")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabularyStatuses VocabularyStatus[]
+  studyRecords       StudyRecord[]
+  errorRecords       ErrorRecord[]
+  errorDailyStats    ErrorDailyStat[]
+  audioRecords       AudioRecord[]
+  dailyTasks         DailyTask[]
+  examResults        ExamResult[]
+}
+
+model VocabularyStatus {
+  id         String      @id @default(cuid())
+  studentId String      @map("student_id")
+  word       String
+  status     VocabStatus
+  errorCount Int         @default(0) @map("error_count")
+  updatedAt  DateTime    @updatedAt
+  student    Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, word])
+}
+
+model StudyRecord {
+  id        String    @id @default(cuid())
+  studentId String    @map("student_id")
+  date      DateTime  @default(now())
+  type      StudyType
+  score     Float
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model ErrorRecord {
+  id        String    @id @default(cuid())
+  studentId String    @map("student_id")
+  content   String
+  errorType ErrorType @map("error_type")
+  count     Int       @default(1)
+  updatedAt DateTime  @updatedAt
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, content, errorType])
+}
+
+model AudioRecord {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  sentence  String
+  transcript String?
+  audioUrl  String   @map("audio_url")
+  score     Float
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model DailyTask {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  dateKey   String   @map("date_key")
+  payload   Json
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, dateKey])
+}
+
+model ExamResult {
+  id        String   @id @default(cuid())
+  studentId String   @map("student_id")
+  weekKey   String   @map("week_key")
+  payload   Json
+  total     Float
+  createdAt DateTime @default(now())
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model ErrorDailyStat {
+  id         String   @id @default(cuid())
+  studentId  String   @map("student_id")
+  dateKey    String   @map("date_key")
+  errorCount Int      @default(0) @map("error_count")
+  updatedAt  DateTime @updatedAt
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, dateKey])
+}

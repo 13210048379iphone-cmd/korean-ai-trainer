@@ -1,0 +1,127 @@
+import { Mic, Play, Square, Upload } from "lucide-react";
+import { useRef, useState } from "react";
+import { API_BASE, api, getToken } from "../api/client.js";
+
+export default function ReadingTrainer({ reading, onSubmitted }) {
+  const [recording, setRecording] = useState(false);
+  const [blob, setBlob] = useState(null);
+  const [transcript, setTranscript] = useState("");
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const mediaRef = useRef(null);
+  const chunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+
+  async function playStandard() {
+    try {
+      const response = await fetch(`${API_BASE}/api/student/tts?text=${encodeURIComponent(reading.text)}`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      if (!response.ok || response.status === 204) throw new Error("No server TTS");
+      const audio = new Audio(URL.createObjectURL(await response.blob()));
+      await audio.play();
+    } catch {
+      const utterance = new SpeechSynthesisUtterance(reading.text);
+      utterance.lang = "ko-KR";
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    chunksRef.current = [];
+    const recorder = new MediaRecorder(stream);
+    mediaRef.current = recorder;
+    recorder.ondataavailable = (event) => chunksRef.current.push(event.data);
+    recorder.onstop = () => {
+      setBlob(new Blob(chunksRef.current, { type: "audio/webm" }));
+      stream.getTracks().forEach((track) => track.stop());
+    };
+    recorder.start();
+    setRecording(true);
+    setResult(null);
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "ko-KR";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+      recognition.onresult = (event) => {
+        const text = Array.from(event.results)
+          .map((item) => item[0].transcript)
+          .join(" ");
+        setTranscript(text);
+      };
+      recognition.start();
+      recognitionRef.current = recognition;
+    }
+  }
+
+  function stopRecording() {
+    mediaRef.current?.stop();
+    recognitionRef.current?.stop();
+    setRecording(false);
+  }
+
+  async function submit() {
+    if (!blob) return;
+    setLoading(true);
+    const form = new FormData();
+    form.append("sentence", reading.text);
+    form.append("transcript", transcript);
+    form.append("audio", blob, "reading.webm");
+    const response = await api("/api/student/reading/submit", { method: "POST", body: form });
+    setResult(response);
+    onSubmitted?.(response);
+    setLoading(false);
+  }
+
+  return (
+    <div className="panel p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-ink">{reading.title}</h3>
+          <p className="mt-1 text-lg leading-8 text-ink">{reading.text}</p>
+          <p className="text-sm text-muted">{reading.translation}</p>
+        </div>
+        <button className="btn-secondary shrink-0" onClick={playStandard} title="播放标准音频">
+          <Play size={16} />
+          播放
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {!recording ? (
+          <button className="btn-primary" onClick={startRecording}>
+            <Mic size={16} />
+            开始录音
+          </button>
+        ) : (
+          <button className="btn-secondary" onClick={stopRecording}>
+            <Square size={16} />
+            停止
+          </button>
+        )}
+        <button className="btn-secondary" disabled={!blob || loading} onClick={submit}>
+          <Upload size={16} />
+          {loading ? "分析中..." : "提交语音"}
+        </button>
+      </div>
+
+      {transcript ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">浏览器转写：{transcript}</p> : null}
+      {result ? (
+        <div className="mt-3 grid gap-2 rounded-md bg-cyan-50 p-3 text-sm">
+          <p className="font-bold text-brand">
+            最终分：{result.finalScore ?? result.score} · 判定：
+            {result.verdict === "correct" ? "正确" : result.verdict === "partial" ? "部分正确" : "需重读"}
+          </p>
+          <p>相似度：{result.similarityScore ?? "-"} · 关键词：{result.keywordMatchScore ?? "-"} · 长度：{result.lengthScore ?? "-"}</p>
+          <p>缺词：{result.missingWords?.join("、") || "无"}</p>
+          <p>错词：{result.wrongWords?.join("、") || "无"}</p>
+          <p>{result.feedback}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
