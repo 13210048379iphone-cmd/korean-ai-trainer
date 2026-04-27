@@ -8,6 +8,8 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
   const [transcript, setTranscript] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [displayMode, setDisplayMode] = useState("ko");
+  const [expandZh, setExpandZh] = useState(false);
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
   const recognitionRef = useRef(null);
@@ -87,13 +89,48 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
     setLoading(false);
   }
 
+  const zhText = String(reading.translation || "");
+  const shortZh = zhText.length > 90 ? `${zhText.slice(0, 90)}...` : zhText;
+  const missingText =
+    result?.missingWordsDetailed?.map((item) => (item.meaning ? `${item.word}（${item.meaning}）` : item.word)).join("、") ||
+    result?.missingWords?.join("、") ||
+    "无";
+  const wrongText =
+    result?.wrongWordsDetailed?.map((item) => (item.meaning ? `${item.word}（${item.meaning}）` : item.word)).join("、") ||
+    result?.wrongWords?.join("、") ||
+    "无";
+
   return (
     <div className="panel p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h3 className="font-bold text-ink">{reading.title}</h3>
-          <p className="mt-1 text-lg leading-8 text-ink">{reading.text}</p>
-          <p className="text-sm text-muted">{reading.translation}</p>
+          <div className="mt-2 inline-flex rounded-md border border-line p-1">
+            <button
+              className={displayMode === "ko" ? "btn-primary !px-3 !py-1" : "btn-secondary !px-3 !py-1"}
+              onClick={() => setDisplayMode("ko")}
+            >
+              韩文
+            </button>
+            <button
+              className={displayMode === "zh" ? "btn-primary !px-3 !py-1" : "btn-secondary !px-3 !py-1"}
+              onClick={() => setDisplayMode("zh")}
+            >
+              中文
+            </button>
+          </div>
+          {displayMode === "ko" ? (
+            <p className="mt-2 text-xl leading-10 text-ink">{reading.text}</p>
+          ) : (
+            <div className="mt-2">
+              <p className="text-base leading-8 text-slate-700">{expandZh ? zhText : shortZh}</p>
+              {zhText.length > 90 ? (
+                <button className="mt-1 text-sm font-semibold text-brand hover:underline" onClick={() => setExpandZh((prev) => !prev)}>
+                  {expandZh ? "收起中文" : "展开中文"}
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
         <button className="btn-secondary shrink-0" onClick={playStandard} title="播放标准音频">
           <Play size={16} />
@@ -119,7 +156,7 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
         </button>
       </div>
 
-      {transcript ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">浏览器转写：{transcript}</p> : null}
+      {transcript ? <p className="mt-3 rounded-md bg-rose-50 p-3 text-sm text-slate-700">浏览器转写：{transcript}</p> : null}
       <label className="mt-3 block text-sm font-semibold text-slate-700">
         手动输入识别文本（可选）
         <textarea
@@ -130,14 +167,17 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
         />
       </label>
       {result ? (
-        <div className="mt-3 grid gap-2 rounded-md bg-cyan-50 p-3 text-sm">
+        <div className="mt-3 grid gap-2 rounded-md bg-rose-50 p-3 text-sm">
           <p className="font-bold text-brand">
             最终分：{result.finalScore ?? result.score} · 判定：
             {result.verdict === "correct" ? "正确" : result.verdict === "partial" ? "部分正确" : "需重读"}
           </p>
-          <p>相似度：{result.similarityScore ?? "-"} · 关键词：{result.keywordMatchScore ?? "-"} · 长度：{result.lengthScore ?? "-"}</p>
-          <p>缺词：{result.missingWords?.join("、") || "无"}</p>
-          <p>错词：{result.wrongWords?.join("、") || "无"}</p>
+          <p>
+            相似度：{result.similarityScore ?? "-"} · 关键词：{result.keywordMatchScore ?? "-"} · 长度：{result.lengthScore ?? "-"} · 句段覆盖：
+            {result.segmentCoverageScore ?? "-"}
+          </p>
+          <p>缺词：{missingText}</p>
+          <p>错词：{wrongText}</p>
           <p>{result.feedback}</p>
         </div>
       ) : null}

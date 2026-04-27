@@ -6,7 +6,10 @@ export default function DataPage() {
   const [data, setData] = useState(null);
 
   useEffect(() => {
-    api("/api/student/records").then(setData);
+    const load = () => api("/api/student/records").then(setData);
+    load();
+    window.addEventListener("profile:changed", load);
+    return () => window.removeEventListener("profile:changed", load);
   }, []);
 
   if (!data) return <div className="panel p-6">加载中...</div>;
@@ -14,7 +17,7 @@ export default function DataPage() {
   const chart = data.records.map((item) => ({
     date: new Date(item.date).toLocaleDateString(),
     score: Math.round(item.score),
-    type: item.type
+    type: item.type === "reading" ? "朗读" : item.type === "vocab" ? "词汇" : item.type === "exam" ? "考试" : item.type
   }));
   const sortedErrors = [...data.errors].sort((a, b) => b.count - a.count);
 
@@ -41,7 +44,7 @@ export default function DataPage() {
               <XAxis dataKey="date" />
               <YAxis domain={[0, 100]} />
               <Tooltip />
-              <Line dataKey="score" stroke="#176b87" strokeWidth={2} dot={false} />
+              <Line dataKey="score" stroke="#e85b9a" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -53,8 +56,13 @@ export default function DataPage() {
           <div className="grid gap-2">
             {sortedErrors.map((item) => (
               <div key={item.id} className="flex justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
-                <span>{item.content}</span>
-                <span>{item.errorType} · {item.count}</span>
+                <span>
+                  {item.content}
+                  {item.contentMeaning ? `（${item.contentMeaning}）` : ""}
+                </span>
+                <span>
+                  {item.errorTypeLabel || item.errorType} · {item.count}
+                </span>
               </div>
             ))}
           </div>
@@ -64,8 +72,11 @@ export default function DataPage() {
           <div className="grid gap-2">
             {data.vocabulary.map((item) => (
               <div key={item.id} className="flex justify-between rounded-md bg-slate-50 px-3 py-2 text-sm">
-                <span>{item.word}</span>
-                <span>{item.status} · 错 {item.errorCount}</span>
+                <span>
+                  {item.word}
+                  {item.meaning ? `（${item.meaning}）` : ""}
+                </span>
+                <span>{item.statusLabel || item.status} · 错 {item.errorCount}</span>
               </div>
             ))}
           </div>
@@ -87,8 +98,40 @@ export default function DataPage() {
               {[...data.records].reverse().map((item) => (
                 <tr key={item.id} className="border-t border-line">
                   <td className="py-2">{new Date(item.date).toLocaleString()}</td>
-                  <td>{item.type}</td>
+                  <td>{item.type === "reading" ? "朗读" : item.type === "vocab" ? "词汇" : item.type === "exam" ? "考试" : item.type}</td>
                   <td>{Math.round(item.score)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel p-4">
+        <h2 className="mb-3 text-lg font-bold">个人周报（每周数据表）</h2>
+        <div className="overflow-auto">
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="text-muted">
+              <tr>
+                <th className="py-2">周区间</th>
+                <th>总训练次数</th>
+                <th>周均分</th>
+                <th>口语均分</th>
+                <th>词汇均分</th>
+                <th>考试均分</th>
+                <th>周错误总数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data.weeklyReport || []).map((item) => (
+                <tr key={item.weekStart} className="border-t border-line">
+                  <td className="py-2">{item.weekRange}</td>
+                  <td>{item.sessionCount}</td>
+                  <td>{item.avgScore}</td>
+                  <td>{item.readingAvg}</td>
+                  <td>{item.vocabAvg}</td>
+                  <td>{item.examAvg}</td>
+                  <td>{item.errorCount}</td>
                 </tr>
               ))}
             </tbody>

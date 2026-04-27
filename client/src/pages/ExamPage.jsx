@@ -10,7 +10,10 @@ export default function ExamPage() {
   const [result, setResult] = useState(null);
 
   useEffect(() => {
-    api("/api/student/exam/current").then(setPaper);
+    const load = () => api("/api/student/exam/current").then(setPaper);
+    load();
+    window.addEventListener("profile:changed", load);
+    return () => window.removeEventListener("profile:changed", load);
   }, []);
 
   async function submit() {
@@ -101,7 +104,7 @@ export default function ExamPage() {
           <p className="mt-2 text-sm text-muted">
             听力 {Math.round(result.listeningScore)} · 词汇 {Math.round(result.vocabScore)} · 朗读 {readingScore}
           </p>
-          <p className="mt-3 rounded-md bg-cyan-50 p-3 text-sm text-brand">{result.advice}</p>
+          <p className="mt-3 rounded-md bg-rose-50 p-3 text-sm text-brand">{result.advice}</p>
         </section>
       ) : null}
     </div>

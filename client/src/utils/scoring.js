@@ -43,6 +43,23 @@ function pickKeywords(words) {
   return (filtered.length ? filtered : unique).slice(0, 6);
 }
 
+function chunkByThree(words) {
+  const size = Math.ceil(words.length / 3) || 1;
+  return [words.slice(0, size), words.slice(size, size * 2), words.slice(size * 2)];
+}
+
+function segmentCoverageScore(expectedWords, actualWords) {
+  if (!expectedWords.length) return 100;
+  const actualSet = new Set(actualWords);
+  const segments = chunkByThree(expectedWords);
+  const coverage = segments.map((segment) => {
+    if (!segment.length) return 1;
+    const hit = segment.filter((word) => actualSet.has(word)).length;
+    return hit / segment.length;
+  });
+  return Math.round((coverage.reduce((sum, value) => sum + value, 0) / coverage.length) * 100);
+}
+
 export function evaluateSpeech(expectedText, recognizedText) {
   const expected = normalizeKorean(expectedText);
   const actual = normalizeKorean(recognizedText);
@@ -52,6 +69,7 @@ export function evaluateSpeech(expectedText, recognizedText) {
       similarityScore: 0,
       keywordMatchScore: 0,
       lengthScore: 0,
+      segmentCoverageScore: 0,
       finalScore: 0,
       verdict: "retry",
       recognizedText: recognizedText || "",
@@ -77,7 +95,10 @@ export function evaluateSpeech(expectedText, recognizedText) {
 
   const lengthRatio = Math.min(actualWords.length, expectedWords.length) / Math.max(expectedWords.length, 1);
   const lengthScore = Math.round(Math.max(0, Math.min(1, lengthRatio)) * 100);
-  const finalScore = Math.round(similarityScore * 0.6 + keywordMatchScore * 0.3 + lengthScore * 0.1);
+  const segmentScore = segmentCoverageScore(expectedWords, actualWords);
+  const finalScore = Math.round(
+    similarityScore * 0.4 + keywordMatchScore * 0.2 + lengthScore * 0.25 + segmentScore * 0.15
+  );
 
   let verdict = "retry";
   let message = "匹配度较低，需要重读。";
@@ -93,6 +114,7 @@ export function evaluateSpeech(expectedText, recognizedText) {
     similarityScore,
     keywordMatchScore,
     lengthScore,
+    segmentCoverageScore: segmentScore,
     finalScore,
     verdict,
     recognizedText: recognizedText || "",

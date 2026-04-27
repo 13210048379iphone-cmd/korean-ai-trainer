@@ -3,11 +3,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#172033",
-        muted: "#64748b",
-        line: "#d9e2ef",
-        brand: "#176b87",
-        accent: "#f2a65a"
+        ink: "#3e2e4f",
+        muted: "#8f7b9f",
+        line: "#f2d9e8",
+        brand: "#e85b9a",
+        accent: "#ffc98a"
       }
     }
   },
