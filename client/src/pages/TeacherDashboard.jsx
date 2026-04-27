@@ -1,7 +1,7 @@
 import { Headphones, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { API_BASE, api } from "../api/client.js";
+import { api } from "../api/client.js";
 
 export default function TeacherDashboard() {
   const [students, setStudents] = useState([]);
@@ -211,7 +211,5 @@ function AudioPreview({ audioUrl }) {
 
 function toAbsoluteAudioUrl(audioUrl) {
   if (!audioUrl) return "";
-  if (audioUrl.startsWith("http://") || audioUrl.startsWith("https://")) return audioUrl;
-  if (audioUrl.startsWith("/")) return `${API_BASE}${audioUrl}`;
-  return `${API_BASE}/${audioUrl}`;
+  return audioUrl;
 }

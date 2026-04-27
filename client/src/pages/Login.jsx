@@ -56,10 +56,54 @@ export default function Login() {
           {loading ? "登录中..." : "登录"}
         </button>
         <div className="mt-4 grid gap-2 text-xs text-muted">
-          <button type="button" className="text-left hover:text-brand" onClick={() => setEmail("student@demo.com")}>
+          <button
+            type="button"
+            className="text-left hover:text-brand"
+            onClick={() => {
+              setEmail("student@demo.com");
+              setPassword("pass123456");
+            }}
+          >
             学生演示账号：student@demo.com / pass123456
           </button>
-          <button type="button" className="text-left hover:text-brand" onClick={() => setEmail("teacher@demo.com")}>
+          <button
+            type="button"
+            className="text-left hover:text-brand"
+            onClick={() => {
+              setEmail("student2@demo.com");
+              setPassword("pass123456");
+            }}
+          >
+            学生2账号：student2@demo.com / pass123456
+          </button>
+          <button
+            type="button"
+            className="text-left hover:text-brand"
+            onClick={() => {
+              setEmail("student3@demo.com");
+              setPassword("pass123456");
+            }}
+          >
+            学生3账号：student3@demo.com / pass123456
+          </button>
+          <button
+            type="button"
+            className="text-left hover:text-brand"
+            onClick={() => {
+              setEmail("student4@demo.com");
+              setPassword("pass123456");
+            }}
+          >
+            学生4账号：student4@demo.com / pass123456
+          </button>
+          <button
+            type="button"
+            className="text-left hover:text-brand"
+            onClick={() => {
+              setEmail("teacher@demo.com");
+              setPassword("pass123456");
+            }}
+          >
             教师演示账号：teacher@demo.com / pass123456
           </button>
         </div>

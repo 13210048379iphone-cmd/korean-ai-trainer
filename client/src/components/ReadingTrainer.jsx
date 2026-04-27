@@ -1,6 +1,6 @@
 import { Mic, Play, Square, Upload } from "lucide-react";
 import { useRef, useState } from "react";
-import { API_BASE, api, getToken } from "../api/client.js";
+import { api } from "../api/client.js";
 
 export default function ReadingTrainer({ reading, onSubmitted }) {
   const [recording, setRecording] = useState(false);
@@ -13,22 +13,28 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
   const recognitionRef = useRef(null);
 
   async function playStandard() {
-    try {
-      const response = await fetch(`${API_BASE}/api/student/tts?text=${encodeURIComponent(reading.text)}`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-      });
-      if (!response.ok || response.status === 204) throw new Error("No server TTS");
-      const audio = new Audio(URL.createObjectURL(await response.blob()));
-      await audio.play();
-    } catch {
-      const utterance = new SpeechSynthesisUtterance(reading.text);
-      utterance.lang = "ko-KR";
-      window.speechSynthesis.speak(utterance);
-    }
+    const utterance = new SpeechSynthesisUtterance(reading.text);
+    utterance.lang = "ko-KR";
+    window.speechSynthesis.speak(utterance);
   }
 
   async function startRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setResult({
+        finalScore: 0,
+        verdict: "retry",
+        similarityScore: 0,
+        keywordMatchScore: 0,
+        lengthScore: 0,
+        missingWords: [],
+        wrongWords: [],
+        feedback: "浏览器没有麦克风权限，请允许录音或手动输入识别文本。"
+      });
+      return;
+    }
     chunksRef.current = [];
     const recorder = new MediaRecorder(stream);
     mediaRef.current = recorder;
@@ -43,18 +49,22 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.lang = "ko-KR";
-      recognition.interimResults = true;
-      recognition.continuous = true;
-      recognition.onresult = (event) => {
-        const text = Array.from(event.results)
-          .map((item) => item[0].transcript)
-          .join(" ");
-        setTranscript(text);
-      };
-      recognition.start();
-      recognitionRef.current = recognition;
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.lang = "ko-KR";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.onresult = (event) => {
+          const text = Array.from(event.results)
+            .map((item) => item[0].transcript)
+            .join(" ");
+          setTranscript(text);
+        };
+        recognition.start();
+        recognitionRef.current = recognition;
+      } catch {
+        // ignore browser limitations, user can type transcript manually
+      }
     }
   }
 
@@ -65,12 +75,12 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
   }
 
   async function submit() {
-    if (!blob) return;
+    if (!blob && !transcript.trim()) return;
     setLoading(true);
     const form = new FormData();
     form.append("sentence", reading.text);
     form.append("transcript", transcript);
-    form.append("audio", blob, "reading.webm");
+    if (blob) form.append("audio", blob, "reading.webm");
     const response = await api("/api/student/reading/submit", { method: "POST", body: form });
     setResult(response);
     onSubmitted?.(response);
@@ -103,13 +113,22 @@ export default function ReadingTrainer({ reading, onSubmitted }) {
             停止
           </button>
         )}
-        <button className="btn-secondary" disabled={!blob || loading} onClick={submit}>
+        <button className="btn-secondary" disabled={(!blob && !transcript.trim()) || loading} onClick={submit}>
           <Upload size={16} />
           {loading ? "分析中..." : "提交语音"}
         </button>
       </div>
 
       {transcript ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-slate-700">浏览器转写：{transcript}</p> : null}
+      <label className="mt-3 block text-sm font-semibold text-slate-700">
+        手动输入识别文本（可选）
+        <textarea
+          className="input mt-1 min-h-20"
+          value={transcript}
+          onChange={(event) => setTranscript(event.target.value)}
+          placeholder="如果浏览器不能自动识别，你可以手动粘贴朗读内容。"
+        />
+      </label>
       {result ? (
         <div className="mt-3 grid gap-2 rounded-md bg-cyan-50 p-3 text-sm">
           <p className="font-bold text-brand">
