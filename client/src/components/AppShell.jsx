@@ -8,6 +8,8 @@ export default function AppShell() {
   const [profiles, setProfiles] = useState([]);
   const [activeStudentId, setActiveStudentId] = useState("");
   const [newName, setNewName] = useState("");
+  const [newLevel, setNewLevel] = useState("TOPIK0");
+  const [profileHint, setProfileHint] = useState("");
 
   const links = [
     { to: "/student", label: "今日训练", icon: BookOpen },
@@ -32,6 +34,8 @@ export default function AppShell() {
     });
     setProfiles(result.profiles || []);
     setActiveStudentId(result.activeStudentId || "");
+    const selected = (result.profiles || []).find((item) => item.id === studentId);
+    setProfileHint(selected ? `已切换到 ${selected.name}（${selected.level}）` : "已切换学习者");
     window.dispatchEvent(new CustomEvent("profile:changed", { detail: { studentId } }));
     navigate("/student");
   }
@@ -40,11 +44,13 @@ export default function AppShell() {
     if (!newName.trim()) return;
     const result = await api("/api/profiles/create", {
       method: "POST",
-      body: JSON.stringify({ name: newName.trim(), level: "TOPIK0" })
+      body: JSON.stringify({ name: newName.trim(), level: newLevel })
     });
     setProfiles(result.profiles || []);
     setActiveStudentId(result.activeStudentId || "");
+    setProfileHint(`已添加用户 ${newName.trim()}（${newLevel}）`);
     setNewName("");
+    setNewLevel("TOPIK0");
     window.dispatchEvent(new CustomEvent("profile:changed", { detail: { studentId: result.activeStudentId } }));
     navigate("/student");
   }
@@ -64,6 +70,7 @@ export default function AppShell() {
               className="input h-10 min-w-36 py-0"
               value={activeStudentId}
               onChange={(event) => switchProfile(event.target.value)}
+              title="切换用户"
             >
               {profiles.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -73,19 +80,35 @@ export default function AppShell() {
             </select>
             <input
               className="input h-10 min-w-28 py-0"
-              placeholder="新增学习者"
+              placeholder="输入用户名（如 777）"
               value={newName}
               onChange={(event) => setNewName(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") createProfile();
               }}
             />
+            <select
+              className="input h-10 min-w-28 py-0"
+              value={newLevel}
+              onChange={(event) => setNewLevel(event.target.value)}
+              title="选择等级"
+            >
+              <option value="TOPIK0">TOPIK0（零基础）</option>
+              <option value="TOPIK1">TOPIK1（初级）</option>
+              <option value="TOPIK2">TOPIK2（中级）</option>
+              <option value="TOPIK3">TOPIK3（进阶）</option>
+            </select>
             <button className="btn-secondary h-10" onClick={createProfile}>
               <Plus size={16} />
-              添加
+              添加用户
             </button>
           </div>
         </div>
+        {profileHint ? (
+          <div className="mx-auto max-w-7xl px-4 pb-2">
+            <p className="rounded-md bg-rose-50 px-3 py-2 text-xs text-brand">{profileHint}</p>
+          </div>
+        ) : null}
       </header>
       <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 md:grid-cols-[220px_1fr]">
         <nav className="panel flex gap-2 p-2 md:flex-col">

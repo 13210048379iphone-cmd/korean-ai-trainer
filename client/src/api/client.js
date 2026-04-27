@@ -354,13 +354,19 @@ function incrementDailyErrorStat(state, studentId, delta = 1) {
 }
 
 function getUnknownWords(state, student) {
+  const levelWordSet = new Set(getLevelWords(student.level).map((item) => item.word));
   const statusWords = state.vocabularyStatuses
-    .filter((item) => item.studentId === student.id && (item.status === "unknown" || item.errorCount > 0))
+    .filter(
+      (item) =>
+        item.studentId === student.id &&
+        levelWordSet.has(item.word) &&
+        (item.status === "unknown" || item.errorCount > 0)
+    )
     .sort((a, b) => b.errorCount - a.errorCount)
     .map((item) => item.word);
 
   const errorWords = state.errorRecords
-    .filter((item) => item.studentId === student.id)
+    .filter((item) => item.studentId === student.id && levelWordSet.has(item.content))
     .sort((a, b) => b.count - a.count)
     .map((item) => item.content);
 
@@ -369,13 +375,19 @@ function getUnknownWords(state, student) {
 }
 
 function getHighPriorityWeakWords(state, student) {
+  const levelWordSet = new Set(getLevelWords(student.level).map((item) => item.word));
   const errorWords = state.errorRecords
-    .filter((item) => item.studentId === student.id)
+    .filter((item) => item.studentId === student.id && levelWordSet.has(item.content))
     .sort((a, b) => b.count - a.count)
     .map((item) => item.content);
 
   const unknownWords = state.vocabularyStatuses
-    .filter((item) => item.studentId === student.id && (item.status === "unknown" || item.errorCount > 0))
+    .filter(
+      (item) =>
+        item.studentId === student.id &&
+        levelWordSet.has(item.word) &&
+        (item.status === "unknown" || item.errorCount > 0)
+    )
     .sort((a, b) => b.errorCount - a.errorCount)
     .map((item) => item.word);
 
@@ -460,9 +472,22 @@ function composeReading(level, studentId, day, order, focusWords, highPriorityWe
 function buildReadings(state, student, focusWords) {
   const day = dateKey();
   const highPriorityWeakWords = getHighPriorityWeakWords(state, student);
+  const bank = READING_BANK[student.level] || READING_BANK.TOPIK0;
+  const baseOffset = hashInt(`${student.id}-${day}`) % Math.max(bank.length, 1);
   const readings = [];
   for (let i = 0; i < DAILY_TARGET.reading; i += 1) {
-    readings.push(composeReading(student.level, student.id, day, i, focusWords, highPriorityWeakWords));
+    const generated = composeReading(student.level, student.id, day, i, focusWords, highPriorityWeakWords);
+    const bankReading = bank[(baseOffset + i) % bank.length];
+    const title = bankReading?.title || generated.title;
+    const text = bankReading ? `${generated.text} ${bankReading.text}` : generated.text;
+    const translation = bankReading ? `${generated.translation} ${bankReading.translation}` : generated.translation;
+    readings.push({
+      ...generated,
+      title: `${title}（${student.level}）`,
+      text,
+      translation,
+      level: student.level
+    });
   }
   return readings;
 }

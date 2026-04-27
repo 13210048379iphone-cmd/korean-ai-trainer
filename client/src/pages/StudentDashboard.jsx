@@ -58,12 +58,13 @@ export default function StudentDashboard() {
           <div>
             <h2 className="text-lg font-bold">今日任务</h2>
             <p className="text-sm text-muted">
-              口语优先：朗读 {taskProgress?.readingTarget ?? 6} 篇，词汇辅助 {taskProgress?.vocabTarget ?? 4} 题，错题循环复习。
+              当前题库难度：{student.level}。口语优先：朗读 {taskProgress?.readingTarget ?? 6} 篇，词汇辅助{" "}
+              {taskProgress?.vocabTarget ?? 4} 题，错题循环复习。
             </p>
           </div>
           <button className="btn-secondary" onClick={regenerate}>
             <RefreshCcw size={16} />
-            重新生成
+            刷新今日题目
           </button>
         </div>
         <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
